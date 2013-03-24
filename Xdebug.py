@@ -21,15 +21,24 @@ current_breakpoint_icon = '../Xdebug/icons/current_breakpoint'
 
 
 class DebuggerException(Exception):
-    pass
+    def __init__(self, m):
+        self.message = m
+    def __str__(self):
+        return self.message
 
 
 class ProtocolException(DebuggerException):
-    pass
+    def __init__(self, m):
+        self.message = m
+    def __str__(self):
+        return self.message
 
 
 class ProtocolConnectionException(ProtocolException):
-    pass
+    def __init__(self, m):
+        self.message = m
+    def __str__(self):
+        return self.message
 
 
 class Protocol(object):
@@ -77,7 +86,7 @@ class Protocol(object):
     def read_until_null(self):
         if self.connected:
             while not '\x00' in self.buffer:
-                self.buffer += self.sock.recv(self.read_rate)
+                self.buffer += self.sock.recv(self.read_rate).decode("utf-8")
             data, self.buffer = self.buffer.split('\x00', 1)
             return data
         else:
@@ -117,10 +126,11 @@ class Protocol(object):
             command += ' -- ' + base64.b64encode(data)
 
         try:
-            self.sock.send(command + '\x00')
+            command += '\x00'
+            self.sock.send(command.encode('utf-8') )
             #print '--->', command
-        except Exception, x:
-            raise(ProtocolConnectionException, x)
+        except Exception as x:
+            raise (ProtocolConnectionException, x)
 
     def accept(self):
         serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -133,7 +143,7 @@ class Protocol(object):
                 serv.listen(1)
                 self.listening = True
                 self.sock = None
-            except Exception, x:
+            except Exception as x:
                 raise(ProtocolConnectionException, x)
 
             while self.listening:
@@ -157,7 +167,7 @@ class Protocol(object):
                 pass
             return self.sock
         else:
-            raise ProtocolConnectionException('Could not create socket')
+            raise(ProtocolConnectionException, 'Could not create socket')
 
 
 class XdebugView(object):
@@ -201,7 +211,7 @@ class XdebugView(object):
             del self.breaks[row]
 
     def view_breakpoints(self):
-        self.view.add_regions('xdebug_breakpoint', self.lines(self.breaks.keys()), get_setting('breakpoint_scope'), breakpoint_icon, sublime.HIDDEN)
+        self.view.add_regions('xdebug_breakpoint', self.lines(list(self.breaks.keys())), get_setting('breakpoint_scope'), breakpoint_icon, sublime.HIDDEN)
 
     def breakpoint_init(self):
         if not self.breaks:
@@ -215,7 +225,7 @@ class XdebugView(object):
     def breakpoint_clear(self):
         if not self.breaks:
             return
-        for row in self.breaks.keys():
+        for row in list(self.breaks.keys()):
             self.del_breakpoint(row)
 
     def uri(self):
@@ -226,11 +236,11 @@ class XdebugView(object):
         if data is None:
             regions = self.view.sel()
         else:
-            if type(data) != types.ListType:
+            if type(data) != list:
                 data = [data]
             regions = []
             for item in data:
-                if type(item) == types.IntType or item.isdigit():
+                if type(item) == int or item.isdigit():
                     regions.append(self.view.line(self.view.text_point(int(item) - 1, 0)))
                 else:
                     regions.append(item)
@@ -239,17 +249,18 @@ class XdebugView(object):
         return [self.view.line(line) for line in lines]
 
     def rows(self, lines):
-        if not type(lines) == types.ListType:
+        if not type(lines) == list:
             lines = [lines]
         return [self.view.rowcol(line.begin())[0] + 1 for line in lines]
 
     def append(self, content, edit=None, end=False):
-        if not edit:
-            edit = self.view.begin_edit()
-            end = True
-        self.view.insert(edit, self.view.size(), content + "\n")
-        if end:
-            self.view.end_edit(edit)
+        self.view.run_command('package_message', { 'string': content + "\n" })
+        # if not edit:
+        #     edit = self.view.begin_edit()
+        #     end = True
+        # self.view.insert(edit, self.view.size(), content + "\n")
+        # if end:
+        #     self.view.end_edit(edit)
         return edit
 
     def on_load(self):
@@ -264,7 +275,7 @@ class XdebugView(object):
         region = self.lines(line)
         icon = current_icon
 
-        if line in self.breaks.keys():
+        if line in list(self.breaks.keys()):
             icon = current_breakpoint_icon
 
         self.add_regions('xdebug_current_line', region, get_setting('current_line_scope'), icon, sublime.HIDDEN)
@@ -291,7 +302,7 @@ class XdebugView(object):
             if is_variable and var_name in self.context_data:
                 kind = self.context_data[var_name]['type']
                 if kind == 'array' or kind == 'object':
-                    for key in sorted(self.context_data.keys()):
+                    for key in sorted(list(self.context_data.keys())):
                         if key.startswith(var_name):
                             data += '{k} ({t}) = {d}\n'.format(k=key, t=self.context_data[key]['type'], d=self.context_data[key]['data'])
                 else:
@@ -300,10 +311,11 @@ class XdebugView(object):
             window = self.view.window()
             if window:
                 output = window.get_output_panel('xdebug_inspect')
-                edit = output.begin_edit()
-                output.erase(edit, sublime.Region(0, output.size()))
-                output.insert(edit, 0, data)
-                output.end_edit(edit)
+                # edit = output.begin_edit()
+                # output.erase(edit, sublime.Region(0, output.size()))
+                # output.insert(edit, 0, data)
+                # output.end_edit(edit)
+                output.run_command('package_message', { 'string': data })
                 window.run_command('show_panel', {"panel": 'output.xdebug_inspect'})
 
 
@@ -328,7 +340,7 @@ class XdebugListenCommand(sublime_plugin.TextCommand):
         uri = init.getAttribute('fileuri')
         #show_file(self.view.window(), uri)
 
-        for view in buffers.values():
+        for view in list(buffers.values()):
             view.breakpoint_init()
 
         self.view.run_command('xdebug_continue', {'state': 'run'})
@@ -344,7 +356,7 @@ class XdebugClearAllBreakpointsCommand(sublime_plugin.TextCommand):
     Clear breakpoints in all open buffers
     '''
     def run(self, edit):
-        for view in buffers.values():
+        for view in list(buffers.values()):
             view.breakpoint_clear()
             view.view_breakpoints()
 
@@ -384,8 +396,8 @@ class XdebugCommand(sublime_plugin.TextCommand):
                 'xdebug_execute': 'Execute',
             })
 
-        self.cmds = mapping.keys()
-        self.items = mapping.values()
+        self.cmds = list(mapping.keys())
+        self.items = list(mapping.values())
         self.view.window().show_quick_panel(self.items, self.callback)
 
     def callback(self, index):
@@ -441,7 +453,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, state=None):
         if not state or not state in self.states:
-            self.view.window().show_quick_panel(self.states.values(), self.callback)
+            self.view.window().show_quick_panel(list(self.states.values()), self.callback)
         else:
             self.callback(state)
 
@@ -449,7 +461,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
         if state == -1:
             return
         if type(state) == int:
-            state = self.states.keys()[state]
+            state = list(self.states.keys())[state]
 
         global xdebug_current
         reset_current()
@@ -471,20 +483,20 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
             result = ''
 
             def getValues(node):
-                result = unicode('')
+                result = ''
                 for child in node.childNodes:
                     if child.nodeName == 'property':
-                        propName = unicode(child.getAttribute('fullname'))
-                        propType = unicode(child.getAttribute('type'))
+                        propName = child.getAttribute('fullname')
+                        propType = child.getAttribute('type')
                         propValue = None
                         try:
-                            propValue = unicode(' '.join(base64.b64decode(t.data) for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE))
+                            propValue = ' '.join(base64.b64decode(t.data) for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE)
                         except:
-                            propValue = unicode(' '.join(t.data for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE))
+                            propValue = ' '.join(t.data for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE)
                         if propName:
                             if propName.lower().find('password') != -1:
-                                propValue = unicode('*****')
-                            result = result + unicode(propName + ' [' + propType + '] = ' + str(propValue) + '\n')
+                                propValue = '*****'
+                            result = result + propName + ' [' + propType + '] = ' + str(propValue) + '\n'
                             result = result + getValues(child)
                             if xdebug_current:
                                 xdebug_current.add_context_data(propName, propType, propValue)
@@ -497,7 +509,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
 
             protocol.send('stack_get')
             res = protocol.read().firstChild
-            result = unicode('')
+            result = ''
             for child in res.childNodes:
                 if child.nodeName == 'stack':
                     propWhere = child.getAttribute('where')
@@ -505,8 +517,8 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
                     propType = child.getAttribute('type')
                     propFile = child.getAttribute('filename')
                     propLine = child.getAttribute('lineno')
-                    result = result + unicode('{level:>3}: {type:<10} {where:<10} {filename}:{lineno}\n' \
-                                              .format(level=propLevel, type=propType, where=propWhere, lineno=propLine, filename=propFile))
+                    result = result + '{level:>3}: {type:<10} {where:<10} {filename}:{lineno}\n' \
+                                              .format(level=propLevel, type=propType, where=propWhere, lineno=propLine, filename=propFile)
             add_debug_info('stack', result)
 
         if res.getAttribute('status') == 'stopping' or res.getAttribute('status') == 'stopped':
@@ -582,10 +594,12 @@ class XdebugExecute(sublime_plugin.TextCommand):
 
         window = self.view.window()
         output = window.get_output_panel('xdebug_execute')
-        edit = output.begin_edit()
-        output.erase(edit, sublime.Region(0, output.size()))
-        output.insert(edit, 0, res.toprettyxml())
-        output.end_edit(edit)
+        # edit = output.begin_edit()
+        # output.erase(edit, sublime.Region(0, output.size()))
+        # output.insert(edit, 0, res.toprettyxml())
+        # output.end_edit(edit)
+        output.run_command('package_message', { 'string': res.toprettyxml() })
+
         window.run_command('show_panel', {"panel": 'output.xdebug_execute'})
 
     def on_change(self, line):
@@ -746,10 +760,11 @@ def add_debug_info(name, data):
     if found:
         v.set_read_only(False)
         window.set_view_index(v, group, 0)
-        edit = v.begin_edit()
-        v.erase(edit, sublime.Region(0, v.size()))
-        v.insert(edit, 0, data)
-        v.end_edit(edit)
+        # edit = v.begin_edit()
+        # v.erase(edit, sublime.Region(0, v.size()))
+        # v.insert(edit, 0, data)
+        # v.end_edit(edit)
+        v.run_command('package_message', { 'string': data })
         v.set_read_only(True)
 
     window.focus_group(0)
