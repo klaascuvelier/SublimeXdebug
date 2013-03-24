@@ -2,6 +2,11 @@
 
 Simple client to connect with XDebug.
 
+## Sublime Text 3
+
+Updated to work with ST3 (Python 3).
+Not backwards compatible
+
 ## Features
 
 - Automatically display scope variables and stack trace
@@ -48,7 +53,7 @@ XDebug actions:
 ## Session based debugging
 
 This plugin can initiate and terminate a debugging session by launching your default web browser with the XDEBUG_SESSION_START or XDEBUG_SESSION_STOP parameters. The debug URL is defined in your .sublime-project file like this:
-	
+
 	{
 		"folders":
 		[
