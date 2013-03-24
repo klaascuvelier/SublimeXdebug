@@ -15,9 +15,12 @@ original_layout = None
 debug_view = None
 protocol = None
 buffers = {}
-breakpoint_icon = '../Xdebug/icons/breakpoint'
-current_icon = '../Xdebug/icons/current'
-current_breakpoint_icon = '../Xdebug/icons/current_breakpoint'
+# breakpoint_icon = './icons/breakpoint'
+# current_icon = './icons/current'
+# current_breakpoint_icon = './icons/current_breakpoint'
+breakpoint_icon = 'dot'
+current_icon = 'bookmark'
+current_breakpoint_icon = 'bookmark'
 
 
 class DebuggerException(Exception):
