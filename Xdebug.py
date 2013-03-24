@@ -8,6 +8,7 @@ import types
 import json
 import webbrowser
 from xml.dom.minidom import parseString
+from .commands import *
 
 
 xdebug_current = None
@@ -257,13 +258,7 @@ class XdebugView(object):
         return [self.view.rowcol(line.begin())[0] + 1 for line in lines]
 
     def append(self, content, edit=None, end=False):
-        self.view.run_command('package_message', { 'string': content + "\n" })
-        # if not edit:
-        #     edit = self.view.begin_edit()
-        #     end = True
-        # self.view.insert(edit, self.view.size(), content + "\n")
-        # if end:
-        #     self.view.end_edit(edit)
+        self.view.run_command('insert_view', { 'string': content + "\n" })
         return edit
 
     def on_load(self):
@@ -314,11 +309,8 @@ class XdebugView(object):
             window = self.view.window()
             if window:
                 output = window.get_output_panel('xdebug_inspect')
-                # edit = output.begin_edit()
-                # output.erase(edit, sublime.Region(0, output.size()))
-                # output.insert(edit, 0, data)
-                # output.end_edit(edit)
-                output.run_command('package_message', { 'string': data })
+                output.run_command('erase_view')
+                output.run_command('insert_view', { 'string': data })
                 window.run_command('show_panel', {"panel": 'output.xdebug_inspect'})
 
 
@@ -597,12 +589,8 @@ class XdebugExecute(sublime_plugin.TextCommand):
 
         window = self.view.window()
         output = window.get_output_panel('xdebug_execute')
-        # edit = output.begin_edit()
-        # output.erase(edit, sublime.Region(0, output.size()))
-        # output.insert(edit, 0, res.toprettyxml())
-        # output.end_edit(edit)
-        output.run_command('package_message', { 'string': res.toprettyxml() })
-
+        output.run_command('erase_view')
+        output.run_command('insert_view', { 'string': res.toprettyxml() })
         window.run_command('show_panel', {"panel": 'output.xdebug_execute'})
 
     def on_change(self, line):
@@ -763,11 +751,8 @@ def add_debug_info(name, data):
     if found:
         v.set_read_only(False)
         window.set_view_index(v, group, 0)
-        # edit = v.begin_edit()
-        # v.erase(edit, sublime.Region(0, v.size()))
-        # v.insert(edit, 0, data)
-        # v.end_edit(edit)
-        v.run_command('package_message', { 'string': data })
+        v.run_command('erase_view')
+        v.run_command('insert_view', { 'string': data })
         v.set_read_only(True)
 
     window.focus_group(0)
