@@ -9,7 +9,7 @@ import json
 import webbrowser
 from xml.dom.minidom import parseString
 from .commands import *
-
+import sys
 
 xdebug_current = None
 original_layout = None
@@ -477,6 +477,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
             res = protocol.read().firstChild
             result = ''
 
+
             def getValues(node):
                 result = ''
                 for child in node.childNodes:
@@ -484,10 +485,19 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
                         propName = child.getAttribute('fullname')
                         propType = child.getAttribute('type')
                         propValue = None
+                        propValues = []
                         try:
-                            propValue = ' '.join(base64.b64decode(t.data) for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE)
+                            for t in child.childNodes:
+                                if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE:
+                                    propValues.append(base64.b64decode(t.data).decode("utf-8"))
+
                         except:
-                            propValue = ' '.join(t.data for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE)
+                            for t in child.childNodes:
+                                if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE:
+                                    propValues.append(t.data)
+
+                        propValue = ' '.join(propValues)
+
                         if propName:
                             if propName.lower().find('password') != -1:
                                 propValue = '*****'
